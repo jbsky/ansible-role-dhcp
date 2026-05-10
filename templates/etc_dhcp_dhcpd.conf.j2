@@ -79,6 +79,9 @@ option domain-search "{{ dhcp_global_domain_search|join('", "') }}";
 option {{ option }};
 {% endfor %}
 {% endif %}
+{% if dhcp_global_pxe_arch is defined and dhcp_global_pxe_arch %}
+option arch code 93 = unsigned integer 16; # RFC4578
+{% endif %}
 {% if dhcp_global_failover_peer is defined %}
 
 #
@@ -225,8 +228,16 @@ subnet {{ subnet.ip }} netmask {{ subnet.netmask }} {
 {% if subnet.next_server is defined %}
   next-server {{ subnet.next_server }};
 {% endif %}
-{% if subnet.filename is defined %}
+{% if subnet.filename is defined and subnet.filename64 is defined %}
+  if option arch = 00:07 {
+    filename "{{ subnet.filename64 }}";
+  } else {
+    filename "{{ subnet.filename }}";
+  }
+{% elif subnet.filename is defined %}
   filename "{{ subnet.filename }}";
+{% elif subnet.filename64 is defined %}
+  filename "{{ subnet.filename64 }}";
 {% endif %}
 {% if subnet.bootp is defined %}
 {{ subnet.bootp }} bootp;
@@ -318,13 +329,11 @@ and host.ip  | ansible.netcommon.ipaddr(network) | ansible.netcommon.ipaddr('boo
 }
 {% endfor %}
 {% endif %}
-{% if dhcp_pxeboot_server is defined %}
+{% if dhcp_pxeboot_server is defined and dhcp_pxeboot_server %}
 
 #
 # PXEBoot server settings
 #
-option arch code 93 = unsigned integer 16; # RFC4578
-
 class "pxeclients" {
   match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
   next-server {{ dhcp_pxeboot_server }};
